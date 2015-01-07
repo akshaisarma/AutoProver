@@ -1,7 +1,7 @@
 Please check the code for specific function comments. I reproduce the discussion on representation
 here again.
 
-*****************************IMPORTANT ASSUMPTION***********************************
+******************IMPORTANT ASSUMPTION*************************
 I assumed that the triples that were to be returned were ALL the resolvents generated while looking for
 the nil resolvent. I was not sure if the triples to be returned were to be the PROOF (i.e. all resolvents
 that directly generate the nil resolvent in a sequence). Since the heuristic is good, the returned triples
@@ -38,7 +38,7 @@ is represented as (make-compound :op 'Knows :args '(=x =y))
 Knows(Mother(x), John) is represented as:
 (make-compound :op 'Knows :args (list (make-compound :op 'Mother :args '(=x)) 'John))
 
-====================================================================================================
+====================================================================
 
 I present three tests and the results of running them. For each test, I present the English, the
 FOL and the SNF clauses as variables (for easy modification etc.) Then I present the output. All
@@ -53,7 +53,7 @@ Simply copy and paste the entire chunk of defvars into the REPL and then simply 
 function as shown below for each test. The output shows the nil resolvent as the first entry in
 the triple
 
-****************************************************************************************************
+*********************************************************************
 
 English: Everyone is wealthy or greedy. John is not wealthy. Is John greedy?
 
@@ -76,7 +76,7 @@ CL-USER> (atp t1kb t1nq)
   ((NOT #S(COMPOUND :OP GREEDY :ARGS (JOHN))))
   (#S(COMPOUND :OP WEALTHY :ARGS (JOHN)))))
 
-****************************************************************************************************
+*********************************************************************
 Test 2
 
 English: It is a crime for an American to sell weapons to hostile nations. The country Nono, an
@@ -306,7 +306,7 @@ CL-USER> (atp t2kb t2nq)
    (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
    (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST))))))
 
-****************************************************************************************************
+*********************************************************************
 Test 3
 
 English: The customs officials search everyone who enters the country who is not a VIP. Some
@@ -394,7 +394,7 @@ CL-USER> (atp t3kb t3nq)
   ((NOT #S(COMPOUND :OP P :ARGS (#S(COMPOUND :OP F :ARGS (=X)))))
    #S(COMPOUND :OP V :ARGS (=X)) (NOT #S(COMPOUND :OP E :ARGS (=X))))))
 
-****************************************************************************************************
+*********************************************************************
 Test 4: Failure test
 
 For this test, I simply assume Test 2 has been run. I take the negated query (t2nq) (not Criminal(West))
