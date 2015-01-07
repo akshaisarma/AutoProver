@@ -1,0 +1,408 @@
+Please check the code for specific function comments. I reproduce the discussion on representation
+here again.
+
+*****************************IMPORTANT ASSUMPTION***********************************
+I assumed that the triples that were to be returned were ALL the resolvents generated while looking for
+the nil resolvent. I was not sure if the triples to be returned were to be the PROOF (i.e. all resolvents
+that directly generate the nil resolvent in a sequence). Since the heuristic is good, the returned triples
+do not contain a lot of useless resolutions. For instance, one proof consists of nine resolutions while
+my theorem prover returns twenty five (the Criminal(West) proof)
+
+Representation:
+An SNF sentence is a conjuction of disjunctions. I refer to each conjunction term
+as simply a clause. Since this is a strict requirement, there is no need to
+represent logical connectives (AND and OR) in the input SNF sentence
+The SNF sentence, for example, a knowledge base, is represented as:
+(list clause1 clause2 ...). Being in a list implies that they are being ANDed
+together. The list is REQUIRED even if there is only clause
+
+A clause is series of disjunctions. I refer to each disjunction term as simply a term.
+A clause is represented as:
+(list term1 term2 ...). Being in a list implies that they are being ORed together.
+As with above, this list is REQUIRED even if there is only clause
+
+A term is any literal or compound or the negatation of each. Now, as above, I could
+have simply represented negation by adding another nested list, I choose to, for
+readability to simply represented a negated term as (list 'not term), where term is
+is a literal or a compound.
+
+The negated query is a clause (i.e. a series of disjunctions) and must be
+provided as such
+
+Variables are represented by prefixing them with '='. Example: variable x is =x
+
+Constants are simply atoms (do not prefix them with = however)
+
+Predicates and functions (skolem) are represented as compounds. Example: Knows(x,y)
+is represented as (make-compound :op 'Knows :args '(=x =y))
+Knows(Mother(x), John) is represented as:
+(make-compound :op 'Knows :args (list (make-compound :op 'Mother :args '(=x)) 'John))
+
+====================================================================================================
+
+I present three tests and the results of running them. For each test, I present the English, the
+FOL and the SNF clauses as variables (for easy modification etc.) Then I present the output. All
+these theorems are true
+
+To obtain a refutation, simply negate any negated query and rerun. I show this on Test 2, shown
+below as Test 4.
+
+These tests are simply the same ones discussed in class. The theorems are taken from the slides.
+
+Simply copy and paste the entire chunk of defvars into the REPL and then simply run the atp
+function as shown below for each test. The output shows the nil resolvent as the first entry in
+the triple
+
+****************************************************************************************************
+
+English: Everyone is wealthy or greedy. John is not wealthy. Is John greedy?
+
+FOL:    (all(x) Wealthy(x) V Greedy(x))
+        !Wealthy(John)
+ Query: Greedy(John)?
+
+
+(defvar kbca (list (make-compound :op 'Wealthy :args '(=x)) (make-compound :op 'Greedy :args '(=x))))
+(defvar kbcb (list (list 'not (make-compound :op 'Wealthy :args '(JOHN)))))
+
+(defvar t1kb (list kbca kbcb))
+(defvar t1nq (list (list 'not (make-compound :op 'Greedy :args '(JOHN)))))
+
+Output:
+CL-USER> (atp t1kb t1nq)
+((((NOT #S(COMPOUND :OP WEALTHY :ARGS (JOHN))))
+  (#S(COMPOUND :OP WEALTHY :ARGS (JOHN))) NIL)
+ ((#S(COMPOUND :OP WEALTHY :ARGS (=X)) #S(COMPOUND :OP GREEDY :ARGS (=X)))
+  ((NOT #S(COMPOUND :OP GREEDY :ARGS (JOHN))))
+  (#S(COMPOUND :OP WEALTHY :ARGS (JOHN)))))
+
+****************************************************************************************************
+Test 2
+
+English: It is a crime for an American to sell weapons to hostile nations. The country Nono, an
+	 enemy of America, has some missles. All of Nono’s missles were sold to it by Colonel West,
+	 who is American. Prove that Colonel West is a criminal.
+FOL:	(all(xyz) American(x) ^ Weapon(y) ^ Sells(x,y,z) ^ Hostile(z) => Criminal(x))
+	(exists(x) Owns(Nono,x) ^ Missile(x))
+	(all(x) Missle(x) ^ Owns(Nono,x) => Sells(West,x,Nono)
+	(all(x) Missle(x) => Weapon(x))
+	(all(x) Enemy(x, America) => Hostile(x))
+	American(West)
+	Enemy(Nono,America)
+  Query: Criminal(West)
+
+(defvar kbc1 (list (list 'not (make-compound :op 'American :args '(=x))) (list 'not (make-compound :op 'Weapon :args '(=y))) (list 'not (make-compound :op 'Sells :args '(=x =y =z)))  (list 'not (make-compound :op 'Hostile :args '(=z)))  (make-compound :op 'Criminal :args '(=x))))
+(defvar kbc2 (list (make-compound :op 'Owns :args '(Nono M1))))
+(defvar kbc3 (list (make-compound :op 'Missile :args '(M1))))
+(defvar kbc4 (list (list 'not (make-compound :op 'Missile :args '(=x))) (list 'not (make-compound :op 'Owns :args '(Nono =x)))  (make-compound :op 'Sells :args '(West =x Nono))))
+(defvar kbc5 (list (list 'not (make-compound :op 'Missile :args '(=x))) (make-compound :op 'Weapon :args '(=x))))
+(defvar kbc6 (list (list 'not (make-compound :op 'Enemy :args '(=x America))) (make-compound :op 'Hostile :args '(=x))))
+(defvar kbc7 (list (make-compound :op 'American :args '(West))))
+(defvar kbc8 (list (make-compound :op 'Enemy :args '(Nono America))))
+
+(defvar t2kb (list kbc1 kbc2 kbc3 kbc4 kbc5 kbc6 kbc7 kbc8))
+(defvar t2nq (list (list  'not (make-compound :op 'Criminal :args '(West)))))
+
+Output:
+CL-USER> (atp t2kb t2nq)
+(((#S(COMPOUND :OP ENEMY :ARGS (NONO AMERICA)))
+  ((NOT #S(COMPOUND :OP ENEMY :ARGS (NONO AMERICA)))) NIL)
+ ((#S(COMPOUND :OP ENEMY :ARGS (NONO AMERICA)))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP ENEMY :ARGS (NONO AMERICA))))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))))
+ ((#S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP ENEMY :ARGS (NONO AMERICA))))
+  ((NOT #S(COMPOUND :OP ENEMY :ARGS (NONO AMERICA)))))
+ ((#S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO))))
+  ((NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))))
+ (((NOT #S(COMPOUND :OP ENEMY :ARGS (=X AMERICA)))
+   #S(COMPOUND :OP HOSTILE :ARGS (=X)))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO))))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP ENEMY :ARGS (NONO AMERICA)))))
+ ((#S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+  ((NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (M1))))
+  ((NOT #S(COMPOUND :OP MISSILE :ARGS (M1)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))))
+ (((NOT #S(COMPOUND :OP ENEMY :ARGS (=X AMERICA)))
+   #S(COMPOUND :OP HOSTILE :ARGS (=X)))
+  ((NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (M1))))
+  ((NOT #S(COMPOUND :OP MISSILE :ARGS (M1)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP ENEMY :ARGS (NONO AMERICA)))))
+ ((#S(COMPOUND :OP MISSILE :ARGS (M1)))
+  ((NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (M1))))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))))
+ ((#S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO))))
+  ((NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))))
+ (((NOT #S(COMPOUND :OP ENEMY :ARGS (=X AMERICA)))
+   #S(COMPOUND :OP HOSTILE :ARGS (=X)))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO))))
+  ((NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP ENEMY :ARGS (NONO AMERICA)))))
+ (((NOT #S(COMPOUND :OP MISSILE :ARGS (=X)))
+   #S(COMPOUND :OP WEAPON :ARGS (=X)))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO))))
+  ((NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (M1)))))
+ ((#S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+  ((NOT #S(COMPOUND :OP MISSILE :ARGS (M1)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST))))
+  ((NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (M1)))))
+ (((NOT #S(COMPOUND :OP ENEMY :ARGS (=X AMERICA)))
+   #S(COMPOUND :OP HOSTILE :ARGS (=X)))
+  ((NOT #S(COMPOUND :OP MISSILE :ARGS (M1)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST))))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (M1)))
+   (NOT #S(COMPOUND :OP ENEMY :ARGS (NONO AMERICA)))))
+ (((NOT #S(COMPOUND :OP MISSILE :ARGS (=X)))
+   #S(COMPOUND :OP WEAPON :ARGS (=X)))
+  ((NOT #S(COMPOUND :OP MISSILE :ARGS (M1)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST))))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (M1)))))
+ ((#S(COMPOUND :OP MISSILE :ARGS (M1)))
+  ((NOT #S(COMPOUND :OP MISSILE :ARGS (M1)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST))))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))))
+ ((#S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP OWNS :ARGS (NONO =Y)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (=Y))))
+  ((NOT #S(COMPOUND :OP MISSILE :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP OWNS :ARGS (NONO =Y)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))))
+ (((NOT #S(COMPOUND :OP ENEMY :ARGS (=X AMERICA)))
+   #S(COMPOUND :OP HOSTILE :ARGS (=X)))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP OWNS :ARGS (NONO =Y)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (=Y))))
+  ((NOT #S(COMPOUND :OP MISSILE :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP OWNS :ARGS (NONO =Y)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP ENEMY :ARGS (NONO AMERICA)))))
+ (((NOT #S(COMPOUND :OP MISSILE :ARGS (=X)))
+   #S(COMPOUND :OP WEAPON :ARGS (=X)))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP OWNS :ARGS (NONO =Y)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (=Y))))
+  ((NOT #S(COMPOUND :OP OWNS :ARGS (NONO =Y)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (=Y)))))
+ ((#S(COMPOUND :OP MISSILE :ARGS (M1)))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP OWNS :ARGS (NONO =Y)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (=Y))))
+  ((NOT #S(COMPOUND :OP OWNS :ARGS (NONO M1)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))))
+ ((#S(COMPOUND :OP OWNS :ARGS (NONO M1)))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP OWNS :ARGS (NONO =Y)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (=Y))))
+  ((NOT #S(COMPOUND :OP MISSILE :ARGS (M1)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (M1)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))))
+ ((#S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+  ((NOT #S(COMPOUND :OP HOSTILE :ARGS (=Z)))
+   (NOT #S(COMPOUND :OP SELLS :ARGS (WEST =Y =Z)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST))))
+  ((NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP SELLS :ARGS (WEST =Y =Z)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (=Z)))))
+ (((NOT #S(COMPOUND :OP ENEMY :ARGS (=X AMERICA)))
+   #S(COMPOUND :OP HOSTILE :ARGS (=X)))
+  ((NOT #S(COMPOUND :OP HOSTILE :ARGS (=Z)))
+   (NOT #S(COMPOUND :OP SELLS :ARGS (WEST =Y =Z)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST))))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP SELLS :ARGS (WEST =Y =Z)))
+   (NOT #S(COMPOUND :OP ENEMY :ARGS (=Z AMERICA)))))
+ (((NOT #S(COMPOUND :OP MISSILE :ARGS (=X)))
+   #S(COMPOUND :OP WEAPON :ARGS (=X)))
+  ((NOT #S(COMPOUND :OP HOSTILE :ARGS (=Z)))
+   (NOT #S(COMPOUND :OP SELLS :ARGS (WEST =Y =Z)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST))))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP SELLS :ARGS (WEST =Y =Z)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (=Z)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (=Y)))))
+ (((NOT #S(COMPOUND :OP MISSILE :ARGS (=X)))
+   (NOT #S(COMPOUND :OP OWNS :ARGS (NONO =X)))
+   #S(COMPOUND :OP SELLS :ARGS (WEST =X NONO)))
+  ((NOT #S(COMPOUND :OP HOSTILE :ARGS (=Z)))
+   (NOT #S(COMPOUND :OP SELLS :ARGS (WEST =Y =Z)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST))))
+  ((NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (NONO)))
+   (NOT #S(COMPOUND :OP OWNS :ARGS (NONO =Y)))
+   (NOT #S(COMPOUND :OP MISSILE :ARGS (=Y)))))
+ (((NOT #S(COMPOUND :OP AMERICAN :ARGS (=X)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP SELLS :ARGS (=X =Y =Z)))
+   (NOT #S(COMPOUND :OP HOSTILE :ARGS (=Z)))
+   #S(COMPOUND :OP CRIMINAL :ARGS (=X)))
+  ((NOT #S(COMPOUND :OP CRIMINAL :ARGS (WEST))))
+  ((NOT #S(COMPOUND :OP HOSTILE :ARGS (=Z)))
+   (NOT #S(COMPOUND :OP SELLS :ARGS (WEST =Y =Z)))
+   (NOT #S(COMPOUND :OP WEAPON :ARGS (=Y)))
+   (NOT #S(COMPOUND :OP AMERICAN :ARGS (WEST))))))
+
+****************************************************************************************************
+Test 3
+
+English: The customs officials search everyone who enters the country who is not a VIP. Some
+	 smugglers entered the country; they were only searched by smugglers. No smuggler was a VIP.
+	 Were some of the customs officials smugglers?
+
+FOL:	E(x) = x entered the country
+	V(x) = x is a VIP
+	S(x,y) = y searched x
+	C(x) = x is a customs official
+	P(x) = x is a smuggler
+
+	(all(x) (E(x) ^ !V(x) => (exists(x) S(x,y) ∧ C(y))))
+	(exists(x) (P(x) ^ E(x) ^ (all(y) S(x,y) => P(y))))
+	(all(x) (P(x) => !V(x))
+ Query: (exists(x) (P(x) ^ C(x))
+
+
+(defvar kba (list (list 'not (make-compound :op 'E :args '(=x))) (make-compound :op 'V :args '(=x)) (make-compound :op 'S :args (list '=x (make-compound :op 'f :args '(=x))))))
+(defvar kbb (list (list 'not (make-compound :op 'E :args '(=x))) (make-compound :op 'V :args '(=x)) (make-compound :op 'C :args (list (make-compound :op 'f :args '(=x))))))
+(defvar kbc (list (make-compound :op 'P :args '(C))))
+(defvar kbd (list (make-compound :op 'E :args '(C))))
+(defvar kbe (list (list 'not (make-compound :op 'S :args '(C =y))) (make-compound :op 'P :args '(=y))))
+(defvar kbf (list (list 'not (make-compound :op 'P :args '(=z))) (list 'not (make-compound :op 'V :args '(=z)))))
+
+(defvar t3kb (list kba kbb kbc kbd kbe kbf))
+(defvar t3nq (list (list 'not (make-compound :op 'P :args '(=w))) (list 'not (make-compound :op 'C :args '(=w)))))
+
+Output:
+CL-USER> (atp t3kb t3nq)
+(((#S(COMPOUND :OP P :ARGS (C))) ((NOT #S(COMPOUND :OP P :ARGS (C)))) NIL)
+ (((NOT #S(COMPOUND :OP P :ARGS (=Z))) (NOT #S(COMPOUND :OP V :ARGS (=Z))))
+  (#S(COMPOUND :OP V :ARGS (C))) ((NOT #S(COMPOUND :OP P :ARGS (C)))))
+ (((NOT #S(COMPOUND :OP P :ARGS (=Z))) (NOT #S(COMPOUND :OP V :ARGS (=Z))))
+  (#S(COMPOUND :OP V :ARGS (C)) (NOT #S(COMPOUND :OP E :ARGS (C))))
+  ((NOT #S(COMPOUND :OP E :ARGS (C))) (NOT #S(COMPOUND :OP P :ARGS (C)))))
+ ((#S(COMPOUND :OP E :ARGS (C)))
+  (#S(COMPOUND :OP V :ARGS (C)) (NOT #S(COMPOUND :OP E :ARGS (C))))
+  (#S(COMPOUND :OP V :ARGS (C))))
+ (((NOT #S(COMPOUND :OP P :ARGS (=Z))) (NOT #S(COMPOUND :OP V :ARGS (=Z))))
+  (#S(COMPOUND :OP V :ARGS (C))
+   (NOT #S(COMPOUND :OP S :ARGS (C #S(COMPOUND :OP F :ARGS (=X))))))
+  ((NOT #S(COMPOUND :OP S :ARGS (C #S(COMPOUND :OP F :ARGS (=X)))))
+   (NOT #S(COMPOUND :OP P :ARGS (C)))))
+ (((NOT #S(COMPOUND :OP E :ARGS (=X))) #S(COMPOUND :OP V :ARGS (=X))
+   #S(COMPOUND :OP S :ARGS (=X #S(COMPOUND :OP F :ARGS (=X)))))
+  (#S(COMPOUND :OP V :ARGS (C))
+   (NOT #S(COMPOUND :OP S :ARGS (C #S(COMPOUND :OP F :ARGS (=X))))))
+  (#S(COMPOUND :OP V :ARGS (C)) (NOT #S(COMPOUND :OP E :ARGS (C)))))
+ (((NOT #S(COMPOUND :OP P :ARGS (=Z))) (NOT #S(COMPOUND :OP V :ARGS (=Z))))
+  (#S(COMPOUND :OP V :ARGS (C))
+   (NOT #S(COMPOUND :OP P :ARGS (#S(COMPOUND :OP F :ARGS (=X))))))
+  ((NOT #S(COMPOUND :OP P :ARGS (#S(COMPOUND :OP F :ARGS (=X)))))
+   (NOT #S(COMPOUND :OP P :ARGS (C)))))
+ (((NOT #S(COMPOUND :OP S :ARGS (C =Y))) #S(COMPOUND :OP P :ARGS (=Y)))
+  (#S(COMPOUND :OP V :ARGS (C))
+   (NOT #S(COMPOUND :OP P :ARGS (#S(COMPOUND :OP F :ARGS (=X))))))
+  (#S(COMPOUND :OP V :ARGS (C))
+   (NOT #S(COMPOUND :OP S :ARGS (C #S(COMPOUND :OP F :ARGS (=X)))))))
+ (((NOT #S(COMPOUND :OP P :ARGS (=Z))) (NOT #S(COMPOUND :OP V :ARGS (=Z))))
+  ((NOT #S(COMPOUND :OP P :ARGS (#S(COMPOUND :OP F :ARGS (=X)))))
+   #S(COMPOUND :OP V :ARGS (=X)) (NOT #S(COMPOUND :OP E :ARGS (=X))))
+  ((NOT #S(COMPOUND :OP E :ARGS (=X)))
+   (NOT #S(COMPOUND :OP P :ARGS (#S(COMPOUND :OP F :ARGS (=X)))))
+   (NOT #S(COMPOUND :OP P :ARGS (=X)))))
+ (((NOT #S(COMPOUND :OP S :ARGS (C =Y))) #S(COMPOUND :OP P :ARGS (=Y)))
+  ((NOT #S(COMPOUND :OP P :ARGS (#S(COMPOUND :OP F :ARGS (=X)))))
+   #S(COMPOUND :OP V :ARGS (=X)) (NOT #S(COMPOUND :OP E :ARGS (=X))))
+  ((NOT #S(COMPOUND :OP E :ARGS (=X))) #S(COMPOUND :OP V :ARGS (=X))
+   (NOT #S(COMPOUND :OP S :ARGS (C #S(COMPOUND :OP F :ARGS (=X)))))))
+ ((#S(COMPOUND :OP E :ARGS (C)))
+  ((NOT #S(COMPOUND :OP P :ARGS (#S(COMPOUND :OP F :ARGS (=X)))))
+   #S(COMPOUND :OP V :ARGS (=X)) (NOT #S(COMPOUND :OP E :ARGS (=X))))
+  (#S(COMPOUND :OP V :ARGS (C))
+   (NOT #S(COMPOUND :OP P :ARGS (#S(COMPOUND :OP F :ARGS (=X)))))))
+ (((NOT #S(COMPOUND :OP S :ARGS (C =Y))) #S(COMPOUND :OP P :ARGS (=Y)))
+  ((NOT #S(COMPOUND :OP P :ARGS (=W))) (NOT #S(COMPOUND :OP C :ARGS (=W))))
+  ((NOT #S(COMPOUND :OP C :ARGS (=W))) (NOT #S(COMPOUND :OP S :ARGS (C =W)))))
+ ((#S(COMPOUND :OP P :ARGS (C)))
+  ((NOT #S(COMPOUND :OP P :ARGS (=W))) (NOT #S(COMPOUND :OP C :ARGS (=W))))
+  ((NOT #S(COMPOUND :OP C :ARGS (C)))))
+ (((NOT #S(COMPOUND :OP E :ARGS (=X))) #S(COMPOUND :OP V :ARGS (=X))
+   #S(COMPOUND :OP C :ARGS (#S(COMPOUND :OP F :ARGS (=X)))))
+  ((NOT #S(COMPOUND :OP P :ARGS (=W))) (NOT #S(COMPOUND :OP C :ARGS (=W))))
+  ((NOT #S(COMPOUND :OP P :ARGS (#S(COMPOUND :OP F :ARGS (=X)))))
+   #S(COMPOUND :OP V :ARGS (=X)) (NOT #S(COMPOUND :OP E :ARGS (=X))))))
+
+****************************************************************************************************
+Test 4: Failure test
+
+For this test, I simply assume Test 2 has been run. I take the negated query (t2nq) (not Criminal(West))
+and change it to Criminal(West). As expected, the output is NIL.
+
+CL-USER> (setf t2nq (list (make-compound :op 'Criminal :args '(West))))
+(#S(COMPOUND :OP CRIMINAL :ARGS (WEST)))
+CL-USER> (atp t2kb t2nq)
+NIL
+
+
